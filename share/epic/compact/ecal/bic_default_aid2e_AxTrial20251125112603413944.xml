@@ -1,0 +1,19 @@
+<lccdd>
+
+  <documentation>
+    Title: Default ePIC BIC configuration with 4 AstroPix layers
+    Author: @sly2j
+    Status: development
+    Version: 1.0
+  </documentation>
+
+  <define>
+    <constant name="EcalBarrel_enable_staves_1" value="1" />
+    <constant name="EcalBarrel_enable_staves_2" value="0" />
+    <constant name="EcalBarrel_enable_staves_3" value="0" />
+    <constant name="EcalBarrel_enable_staves_4" value="1" />
+    <constant name="EcalBarrel_enable_staves_5" value="0" />
+    <constant name="EcalBarrel_enable_staves_6" value="1" />
+  </define>
+  <include ref="bic/bic.xml" />
+</lccdd>

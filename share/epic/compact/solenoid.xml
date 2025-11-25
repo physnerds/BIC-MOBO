@@ -1,0 +1,268 @@
+<!-- SPDX-License-Identifier: LGPL-3.0-or-later -->
+<!-- Copyright (C) 2022 Wouter Deconinck, Whitney Armstrong -->
+
+<lccdd>
+  <define>
+    <comment>
+      --------------------------
+      Solenoid Magnet Parameters
+      --------------------------
+    </comment>
+    <comment>Solenoid Barrel Parameters</comment>
+    <constant name="SolenoidBarrelInnerVacuumVesselThickness"   value=" 10.0 * mm"/>
+    <constant name="SolenoidBarrelInnerSecondMLILayerThickness" value=" 20.0 * mm"/>
+    <constant name="SolenoidBarrelInnerThermalShieldThickness"  value=" 5.0 * mm"/>
+    <constant name="SolenoidBarrelInnerFirstMLILayerThickness"  value=" 32.0 * mm"/>
+    <constant name="SolenoidBarrelInnerG10Thickness"            value=" 3.0 * mm"/>
+    <constant name="SolenoidBarrelCoilThickness"                value=" 32.5 * mm"/>
+    <constant name="SolenoidBarrelOuterG10Thickness"            value=" 1.0 * mm"/>
+    <constant name="SolenoidBarrelCoilFormerThickness"          value=" 30.0 * mm"/>
+    <constant name="SolenoidBarrelOuterThermalShieldThickness"  value=" 5.0 * mm"/>
+    <constant name="SolenoidBarrelOuterSecondMLILayerThickness" value=" 62.5 * mm"/>
+    <constant name="SolenoidBarrelOuterVacuumVesselThickness"   value=" 25.0 * mm"/>
+
+    <comment>Solenoid Endcap Parameters</comment>
+    <constant name="SolenoidEndcapCoilEndSupportThickness"  value="92.0 * mm"/>
+    <constant name="SolenoidEndcapG10Thickness"             value=" 3.0 * mm"/>
+    <constant name="SolenoidEndcapFirstMLILayerThickness"   value="15.0 * mm"/>
+    <constant name="SolenoidEndcapThermalShieldThickness"   value=" 5.0 * mm"/>
+    <constant name="SolenoidEndcapSecondMLILayerThickness"  value="20.0 * mm"/>
+    <constant name="SolenoidEndcapVacuumVesselThickness"    value="40.0 * mm"/>
+
+    <comment>Barrel layer zmax extends to the endcap layer zmin</comment>
+    <constant name="SolenoidBarrelInnerVacuumVessel_zmax"   value="SolenoidBarrel_length/2.0 - SolenoidEndcapVacuumVesselThickness"/>
+    <constant name="SolenoidBarrelInnerSecondMLILayer_zmax" value="SolenoidBarrelInnerVacuumVessel_zmax - SolenoidEndcapSecondMLILayerThickness"/>
+    <constant name="SolenoidBarrelInnerThermalShield_zmax"  value="SolenoidBarrelInnerSecondMLILayer_zmax - SolenoidEndcapThermalShieldThickness"/>
+    <constant name="SolenoidBarrelInnerFirstMLILayer_zmax"  value="SolenoidBarrelInnerThermalShield_zmax - SolenoidEndcapFirstMLILayerThickness"/>
+    <constant name="SolenoidBarrelInnerG10_zmax"            value="SolenoidBarrelInnerFirstMLILayer_zmax - SolenoidEndcapG10Thickness"/>
+    <constant name="SolenoidBarrelCoil_zmax"                value="SolenoidBarrelInnerG10_zmax - SolenoidEndcapCoilEndSupportThickness"/>
+    <constant name="SolenoidBarrelOuterG10_zmax"            value="SolenoidBarrelInnerG10_zmax"/>
+    <constant name="SolenoidBarrelCoilFormer_zmax"          value="SolenoidBarrelInnerG10_zmax"/>
+    <constant name="SolenoidBarrelOuterThermalShield_zmax"  value="SolenoidBarrelInnerThermalShield_zmax"/>
+    <constant name="SolenoidBarrelOuterSecondMLILayer_zmax" value="SolenoidBarrelInnerSecondMLILayer_zmax"/>
+    <constant name="SolenoidBarrelOuterVacuumVessel_zmax"   value="SolenoidBarrelInnerVacuumVessel_zmax"/>
+
+    <constant name="SolenoidEndcapCoilEndSupport_zmin"      value="SolenoidBarrelCoil_zmax"/>
+    <constant name="SolenoidEndcapG10_zmin"                 value="SolenoidBarrelInnerG10_zmax"/>
+    <constant name="SolenoidEndcapFirstMLILayer_zmin"       value="SolenoidBarrelInnerFirstMLILayer_zmax"/>
+    <constant name="SolenoidEndcapThermalShield_zmin"       value="SolenoidBarrelInnerThermalShield_zmax"/>
+    <constant name="SolenoidEndcapSecondMLILayer_zmin"      value="SolenoidBarrelInnerSecondMLILayer_zmax"/>
+    <constant name="SolenoidEndcapVacuumVessel_zmin"        value="SolenoidBarrelInnerVacuumVessel_zmax"/>
+
+    <constant name="SolenoidBarrelInnerVacuumVessel_rmin"   value="SolenoidBarrel_rmin"/>
+    <constant name="SolenoidBarrelInnerVacuumVessel_rmax"   value="SolenoidBarrelInnerVacuumVessel_rmin + SolenoidBarrelInnerVacuumVesselThickness"/>
+    <constant name="SolenoidBarrelInnerSecondMLILayer_rmin" value="SolenoidBarrelInnerVacuumVessel_rmax"/>
+    <constant name="SolenoidBarrelInnerSecondMLILayer_rmax" value="SolenoidBarrelInnerSecondMLILayer_rmin + SolenoidBarrelInnerSecondMLILayerThickness"/>
+    <constant name="SolenoidBarrelInnerThermalShield_rmin"  value="SolenoidBarrelInnerSecondMLILayer_rmax"/>
+    <constant name="SolenoidBarrelInnerThermalShield_rmax"  value="SolenoidBarrelInnerThermalShield_rmin + SolenoidBarrelInnerThermalShieldThickness"/>
+    <constant name="SolenoidBarrelInnerFirstMLILayer_rmin"  value="SolenoidBarrelInnerThermalShield_rmax"/>
+    <constant name="SolenoidBarrelInnerFirstMLILayer_rmax"  value="SolenoidBarrelInnerFirstMLILayer_rmin + SolenoidBarrelInnerFirstMLILayerThickness"/>
+    <constant name="SolenoidBarrelInnerG10_rmin"            value="SolenoidBarrelInnerFirstMLILayer_rmax"/>
+    <constant name="SolenoidBarrelInnerG10_rmax"            value="SolenoidBarrelInnerG10_rmin + SolenoidBarrelInnerG10Thickness"/>
+    <constant name="SolenoidBarrelCoil_rmin"                value="SolenoidBarrelInnerG10_rmax"/>
+    <constant name="SolenoidBarrelCoil_rmax"                value="SolenoidBarrelCoil_rmin + SolenoidBarrelCoilThickness"/>
+    <constant name="SolenoidBarrelOuterG10_rmin"            value="SolenoidBarrelCoil_rmax"/>
+    <constant name="SolenoidBarrelOuterG10_rmax"            value="SolenoidBarrelOuterG10_rmin + SolenoidBarrelOuterG10Thickness"/>
+    <constant name="SolenoidBarrelCoilFormer_rmin"          value="SolenoidBarrelOuterG10_rmax"/>
+    <constant name="SolenoidBarrelCoilFormer_rmax"          value="SolenoidBarrelCoilFormer_rmin + SolenoidBarrelCoilFormerThickness"/>
+    <constant name="SolenoidBarrelOuterThermalShield_rmin"  value="SolenoidBarrelCoilFormer_rmax"/>
+    <constant name="SolenoidBarrelOuterThermalShield_rmax"  value="SolenoidBarrelOuterThermalShield_rmin + SolenoidBarrelOuterThermalShieldThickness"/>
+    <constant name="SolenoidBarrelOuterSecondMLILayer_rmin" value="SolenoidBarrelOuterThermalShield_rmax"/>
+    <constant name="SolenoidBarrelOuterSecondMLILayer_rmax" value="SolenoidBarrelOuterSecondMLILayer_rmin + SolenoidBarrelOuterSecondMLILayerThickness"/>
+    <constant name="SolenoidBarrelOuterVacuumVessel_rmin"   value="SolenoidBarrelOuterSecondMLILayer_rmax"/>
+    <constant name="SolenoidBarrelOuterVacuumVessel_rmax"   value="SolenoidBarrelOuterVacuumVessel_rmin + SolenoidBarrelOuterVacuumVesselThickness"/>
+
+    <constant name="SolenoidalFieldRadius"
+              value="(SolenoidBarrelCoil_rmin + SolenoidBarrelCoil_rmax) / 2.0"/>
+
+    <comment> Solenoid Endcap </comment>
+    <comment>At the center, the end caps are outside the barrels</comment>
+    <constant name="SolenoidEndcapCoilEndSupport_rmin" value="SolenoidBarrelCoil_rmin"/>
+    <constant name="SolenoidEndcapCoilEndSupport_rmax" value="SolenoidBarrelCoil_rmax"/>
+    <constant name="SolenoidEndcapG10_rmin"            value="SolenoidBarrelInnerG10_rmin"/>
+    <constant name="SolenoidEndcapG10_rmax"            value="SolenoidBarrelOuterG10_rmax"/>
+    <constant name="SolenoidEndcapFirstMLILayer_rmin"  value="SolenoidBarrelInnerFirstMLILayer_rmin"/>
+    <constant name="SolenoidEndcapFirstMLILayer_rmax"  value="SolenoidBarrelCoilFormer_rmax"/>
+    <constant name="SolenoidEndcapThermalShield_rmin"  value="SolenoidBarrelInnerThermalShield_rmin"/>
+    <constant name="SolenoidEndcapThermalShield_rmax"  value="SolenoidBarrelOuterThermalShield_rmax"/>
+    <constant name="SolenoidEndcapSecondMLILayer_rmin" value="SolenoidBarrelInnerSecondMLILayer_rmin"/>
+    <constant name="SolenoidEndcapSecondMLILayer_rmax" value="SolenoidBarrelOuterSecondMLILayer_rmax"/>
+    <constant name="SolenoidEndcapVacuumVessel_rmin"   value="SolenoidBarrelInnerVacuumVessel_rmin"/>
+    <constant name="SolenoidEndcapVacuumVessel_rmax"   value="SolenoidBarrelOuterVacuumVessel_rmax"/>
+  </define>
+
+  <detectors>
+    <documentation level="6">
+      ### Solenoid Magnet
+      ---------------
+      The solenoid superconducting magnet and surrounding cryostat and
+      yoke endcaps.
+    </documentation>
+    <detector
+      id="Solenoid_ID"
+      name="SolenoidBarrel"
+      type="epic_Solenoid"
+      insideTrackingVolume="false">
+      <position x="0" y="0" z="Solenoid_offset"/>
+      <dimensions rmin="Solenoid_rmin" rmax="Solenoid_rmax" length="Solenoid_length"/>
+      <layer id="1" name="InnerVacuumVessel"
+        inner_r="SolenoidBarrelInnerVacuumVessel_rmin"
+        outer_z="SolenoidBarrelInnerVacuumVessel_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="Aluminum5083" thickness="SolenoidBarrelInnerVacuumVesselThickness"/>
+      </layer>
+      <layer id="2" name="InnerSecondMLILayer"
+        inner_r="SolenoidBarrelInnerSecondMLILayer_rmin"
+        outer_z="SolenoidBarrelInnerSecondMLILayer_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="MylarMLI" thickness="SolenoidBarrelInnerSecondMLILayerThickness"/>
+      </layer>
+      <layer id="3" name="InnerThermalShield"
+        inner_r="SolenoidBarrelInnerThermalShield_rmin"
+        outer_z="SolenoidBarrelInnerThermalShield_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="Copper" thickness="SolenoidBarrelInnerThermalShieldThickness"/>
+      </layer>
+      <layer id="4" name="InnerFirstMLILayer"
+        inner_r="SolenoidBarrelInnerFirstMLILayer_rmin"
+        outer_z="SolenoidBarrelInnerFirstMLILayer_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="MylarMLI" thickness="SolenoidBarrelInnerFirstMLILayerThickness"/>
+      </layer>
+      <layer id="5" name="InnerG10"
+        inner_r="SolenoidBarrelInnerG10_rmin"
+        outer_z="SolenoidBarrelInnerG10_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="G10" thickness="SolenoidBarrelInnerG10Thickness"/>
+      </layer>
+      <layer id="6" name="Coil"
+        inner_r="SolenoidBarrelCoil_rmin"
+        outer_z="SolenoidBarrelCoil_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="SolenoidCoil" thickness="SolenoidBarrelCoilThickness"/>
+      </layer>
+      <layer id="7" name="OuterG10"
+        inner_r="SolenoidBarrelOuterG10_rmin"
+        outer_z="SolenoidBarrelOuterG10_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="G10" thickness="SolenoidBarrelOuterG10Thickness"/>
+      </layer>
+      <layer id="8" name="CoilFormer"
+        inner_r="SolenoidBarrelCoilFormer_rmin"
+        outer_z="SolenoidBarrelCoilFormer_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="Brass" thickness="SolenoidBarrelCoilFormerThickness"/>
+      </layer>
+      <layer id="9" name="OuterThermalShield"
+        inner_r="SolenoidBarrelOuterThermalShield_rmin"
+        outer_z="SolenoidBarrelOuterThermalShield_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="Copper" thickness="SolenoidBarrelOuterThermalShieldThickness"/>
+      </layer>
+      <layer id="10" name="OuterSecondMLILayer"
+        inner_r="SolenoidBarrelOuterSecondMLILayer_rmin"
+        outer_z="SolenoidBarrelOuterSecondMLILayer_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="MylarMLI" thickness="SolenoidBarrelOuterSecondMLILayerThickness"/>
+      </layer>
+      <layer id="11" name="OuterVacuumVessel"
+        inner_r="SolenoidBarrelOuterVacuumVessel_rmin"
+        outer_z="SolenoidBarrelOuterVacuumVessel_zmax"
+        vis="SolenoidCryostatVis">
+        <slice material="Aluminum5083" thickness="SolenoidBarrelOuterVacuumVesselThickness"/>
+      </layer>
+    </detector>
+
+    <detector
+      id="Solenoid_ID"
+      name="SolenoidEndcapP"
+      type="epic_SolenoidEndcap"
+      insideTrackingVolume="false"
+      reflect="false"
+      vis="SolenoidCryostatVis">
+      <position x="0" y="0" z="Solenoid_offset"/>
+      <layer id="1" name="CoilEndSupport"
+        inner_z="SolenoidEndcapCoilEndSupport_zmin"
+        inner_r="SolenoidEndcapCoilEndSupport_rmin"
+        outer_r="SolenoidEndcapCoilEndSupport_rmax">
+        <slice material="Brass" thickness="SolenoidEndcapCoilEndSupportThickness"/>
+      </layer>
+      <layer id="2" name="EndcapG10"
+        inner_z="SolenoidEndcapG10_zmin"
+        inner_r="SolenoidEndcapG10_rmin"
+        outer_r="SolenoidEndcapG10_rmax">
+        <slice material="G10" thickness="SolenoidEndcapG10Thickness"/>
+      </layer>
+      <layer id="3" name="FirstMLILayer"
+        inner_z="SolenoidEndcapFirstMLILayer_zmin"
+        inner_r="SolenoidEndcapFirstMLILayer_rmin"
+        outer_r="SolenoidEndcapFirstMLILayer_rmax">
+        <slice material="MylarMLI" thickness="SolenoidEndcapFirstMLILayerThickness"/>
+      </layer>
+      <layer id="4" name="ThermalShield"
+        inner_z="SolenoidEndcapThermalShield_zmin"
+        inner_r="SolenoidEndcapThermalShield_rmin"
+        outer_r="SolenoidEndcapThermalShield_rmax">
+        <slice material="Aluminum" thickness="SolenoidEndcapThermalShieldThickness"/>
+      </layer>
+      <layer id="5" name="SecondMLILayer"
+        inner_z="SolenoidEndcapSecondMLILayer_zmin"
+        inner_r="SolenoidEndcapSecondMLILayer_rmin"
+        outer_r="SolenoidEndcapSecondMLILayer_rmax">
+        <slice material="MylarMLI" thickness="SolenoidEndcapSecondMLILayerThickness"/>
+      </layer>
+      <layer id="6" name="VacuumVessel"
+        inner_z="SolenoidEndcapVacuumVessel_zmin"
+        inner_r="SolenoidEndcapVacuumVessel_rmin"
+        outer_r="SolenoidEndcapVacuumVessel_rmax">
+        <slice material="Aluminum5083" thickness="SolenoidEndcapVacuumVesselThickness"/>
+      </layer>
+    </detector>
+
+    <detector
+      id="Solenoid_ID"
+      name="SolenoidEndcapN"
+      type="epic_SolenoidEndcap"
+      insideTrackingVolume="false"
+      reflect="true"
+      vis="SolenoidCryostatVis">
+      <position x="0" y="0" z="Solenoid_offset"/>
+      <layer id="1" name="CoilEndSupport"
+        inner_z="SolenoidEndcapCoilEndSupport_zmin"
+        inner_r="SolenoidEndcapCoilEndSupport_rmin"
+        outer_r="SolenoidEndcapCoilEndSupport_rmax">
+        <slice material="Brass" thickness="SolenoidEndcapCoilEndSupportThickness"/>
+      </layer>
+      <layer id="2" name="EndcapG10"
+        inner_z="SolenoidEndcapG10_zmin"
+        inner_r="SolenoidEndcapG10_rmin"
+        outer_r="SolenoidEndcapG10_rmax">
+        <slice material="G10" thickness="SolenoidEndcapG10Thickness"/>
+      </layer>
+      <layer id="3" name="FirstMLILayer"
+        inner_z="SolenoidEndcapFirstMLILayer_zmin"
+        inner_r="SolenoidEndcapFirstMLILayer_rmin"
+        outer_r="SolenoidEndcapFirstMLILayer_rmax">
+        <slice material="MylarMLI" thickness="SolenoidEndcapFirstMLILayerThickness"/>
+      </layer>
+      <layer id="4" name="ThermalShield"
+        inner_z="SolenoidEndcapThermalShield_zmin"
+        inner_r="SolenoidEndcapThermalShield_rmin"
+        outer_r="SolenoidEndcapThermalShield_rmax">
+        <slice material="Aluminum" thickness="SolenoidEndcapThermalShieldThickness"/>
+      </layer>
+      <layer id="5" name="SecondMLILayer"
+        inner_z="SolenoidEndcapSecondMLILayer_zmin"
+        inner_r="SolenoidEndcapSecondMLILayer_rmin"
+        outer_r="SolenoidEndcapSecondMLILayer_rmax">
+        <slice material="MylarMLI" thickness="SolenoidEndcapSecondMLILayerThickness"/>
+      </layer>
+      <layer id="6" name="VacuumVessel"
+        inner_z="SolenoidEndcapVacuumVessel_zmin"
+        inner_r="SolenoidEndcapVacuumVessel_rmin"
+        outer_r="SolenoidEndcapVacuumVessel_rmax">
+        <slice material="Aluminum5083" thickness="SolenoidEndcapVacuumVesselThickness"/>
+      </layer>
+    </detector>
+  </detectors>
+</lccdd>

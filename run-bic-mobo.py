@@ -64,6 +64,7 @@ def RunObjectives(*args, **kwargs):
 
     # create and run script
     script, ofiles = trial.MakeTrialScript(tag, kwargs)
+    print("Printing the scripts and ofiles ", script,ofiles)
     subprocess.run([eic_shell, "--", script])
 
     # write out values of parameters to
