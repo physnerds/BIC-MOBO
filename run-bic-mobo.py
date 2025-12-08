@@ -64,8 +64,19 @@ def RunObjectives(*args, **kwargs):
 
     # create and run script
     script, ofiles = trial.MakeTrialScript(tag, kwargs)
+    #Make sure that the script exists
     print("Printing the scripts and ofiles ", script,ofiles)
-    subprocess.run([eic_shell, "--", script])
+    if not os.path.exists(script):
+        raise FileNotFoundError(f"Script not found: {script}")
+    else:
+        print(f"Script found: {script}")
+        os.chmod(script, 0o755)  # Ensure the script is executable
+    
+    result = subprocess.run([eic_shell, "--", script], capture_output=True, text=True, check=False)
+    if returncode := result.returncode != 0:
+        print("STDOUT:", result.stdout)
+        print("STDERR:", result.stderr)
+        raise RuntimeError(f"Trial script failed with return code {returncode}")
 
     # write out values of parameters to
     # output file(s) for analysis later
