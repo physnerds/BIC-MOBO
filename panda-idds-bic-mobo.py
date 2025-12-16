@@ -157,6 +157,7 @@ if __name__ == "__main__":
         "export AIDE_WORKDIR=$(pwd);",
         "echo AIDE_HOME: ${AIDE_HOME};",
         "echo AIDE_WORKDIR: ${AIDE_WORKDIR};",
+        "pip install --target=${AIDE_WORKDIR} pandas seaborn botorch ax-platform==1.0.0;",
         'export SINGULARITY_OPTIONS="--bind /cvmfs:/cvmfs,$(pwd):$(pwd)"; ',
         "export SIF=/cvmfs/singularity.opensciencegrid.org/eic/eic_ci:nightly; export SINGULARITY_BINDPATH=/cvmfs; ",
         "env; "
