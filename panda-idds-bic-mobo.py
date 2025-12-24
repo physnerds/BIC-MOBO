@@ -55,7 +55,8 @@ def RunObjectives(*args, **kwargs):
     # parse run config to extract path to eic-shell
     cfg_run   = emt.ReadJsonFile(run_path)
     eic_shell = cfg_run["eic_shell"]
-
+    det_path = cfg_run["det_path"]
+    print(f"eic shell path: {eic_shell} and det path: {det_path}")
     # create trial manager
     trial = emt.TrialManager(run_path,
                              par_path,
@@ -70,6 +71,10 @@ def RunObjectives(*args, **kwargs):
     else:
         print(f"Script found: {script}")
         os.chmod(script, 0o755)  # Ensure the script is executable
+    
+    #print the content of the script
+    content = subprocess.run(['cat', script], capture_output=True, text=True)
+    print("Script content:\n", content.stdout)
     
     result = subprocess.run([eic_shell, "--", script], capture_output=True, text=True, check=False)
     if returncode := result.returncode != 0:
@@ -126,13 +131,13 @@ if __name__ == "__main__":
     # Config file paths
     par_path = os.path.join(main_path, "configuration/parameters.config")
     obj_path = os.path.join(main_path, "configuration/objectives.config")
-    run_path = os.path.join(main_path, "configuration/run.config")
+    #run_path = os.path.join(main_path, "configuration/run.config")
     # Get the configuration parameters from the json file
     cfg_par = emt.ReadJsonFile(par_path)
     cfg_obj = emt.ReadJsonFile(obj_path)
-    cfg_run = emt.ReadJsonFile(run_path)
+    #cfg_run = emt.ReadJsonFile(run_path)
 
-    eic_shell = cfg_run["eic_shell"]
+    #eic_shell = cfg_run["eic_shell"]
     #
     # convert configuration parameters to ax-compliant ones
     cfg_par = att.ConvertParamConfig(cfg_par)
@@ -151,17 +156,41 @@ if __name__ == "__main__":
     # setup_mamba contains ax related environment that might be neded during a PanDA job. 
     logging.info("Initializing the environment for the Panda runner")
     init_env = [
-        "source /cvmfs/unpacked.cern.ch/registry.hub.docker.com/fyingtsai/eic_xl:24.11.1/opt/conda/setup_mamba.sh;",
         "command -v singularity &> /dev/null || export SINGULARITY=/cvmfs/oasis.opensciencegrid.org/mis/singularity/current/bin/singularity;",
         "export AIDE_HOME=$(pwd);",
         "export AIDE_WORKDIR=$(pwd);",
+        "export SIF=/cvmfs/singularity.opensciencegrid.org/eic/eic_ci:nightly;",
+        "export DETECTOR_PATH=${SIF}/opt/detector/epic-main/share/epic;",
+        "echo DETECTOR_PATH: ${DETECTOR_PATH};",
         "echo AIDE_HOME: ${AIDE_HOME};",
         "echo AIDE_WORKDIR: ${AIDE_WORKDIR};",
-        "pip install --target=${AIDE_WORKDIR} pandas seaborn botorch ax-platform==1.0.0;",
-        'export SINGULARITY_OPTIONS="--bind /cvmfs:/cvmfs,$(pwd):$(pwd)"; ',
-        "export SIF=/cvmfs/singularity.opensciencegrid.org/eic/eic_ci:nightly; export SINGULARITY_BINDPATH=/cvmfs; ",
-        "env; "
-        ]
+        # Also copy the epic files...
+        "mkdir -p ${AIDE_WORKDIR}/share/epic;",
+        "${SINGULARITY} exec --bind $(pwd):$(pwd) ${SIF} /bin/bash -c \"cp -RLrf /opt/detector/epic-main/share/epic/* \${AIDE_WORKDIR}/share/epic/\";",
+        # Install micromamba (minimal)
+        "export MAMBA_ROOT_PREFIX=${AIDE_WORKDIR}/micromamba;",
+        "export MAMBA_EXE=${MAMBA_ROOT_PREFIX}/bin/micromamba;",
+        "mkdir -p ${MAMBA_ROOT_PREFIX}/bin;",
+        'curl -Ls https://micromamba.snakepit.net/api/micromamba/linux-64/latest | tar -xj -C ${MAMBA_ROOT_PREFIX} bin/micromamba;',
+        "chmod a+rx ${MAMBA_ROOT_PREFIX};",
+        "${MAMBA_EXE} config append --system channels conda-forge;",
+        # Install Python 3.13
+        "${MAMBA_EXE} install -y -r ${MAMBA_ROOT_PREFIX} -n base python=3.13;",
+        "${MAMBA_EXE} clean -a -y;",
+        # Activate micromamba and install packages via pip
+        'eval "$(${MAMBA_EXE} shell hook -s posix)";',
+        "micromamba activate base;",
+        "pip install pandas seaborn botorch ax-platform==1.0.0 numpy matplotlib torch;",
+        # Make sure to use mamba python
+        'export PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH;',
+        #echo the python being used
+        'echo "python version being used " $(python --version; which python);',
+        # Singularity setup
+        'export SINGULARITY_OPTIONS="--bind /cvmfs:/cvmfs,$(pwd):$(pwd)";',
+        "export SIF=/cvmfs/singularity.opensciencegrid.org/eic/eic_ci:nightly;",
+        "export SINGULARITY_BINDPATH=/cvmfs;",
+        "env;"
+    ]
     init_env = " ".join(init_env)
 
     #Now create panda_attr dictionary
@@ -177,11 +206,12 @@ if __name__ == "__main__":
             r"(^|/)\.[^/]+", # hidden files and directories
             r"(^|/)out(/|$)",# directories called out and run are excluded
             r"(^|/)run(/|$)",
-            #directories called calibrations, fieldmaps, gdml they have symlinks and are created during run time
+            r"(^|/)share(/|$)",
             r"(^|/)calibrations(/|$)",
             r"(^|/)fieldmaps(/|$)",
             r"(^|/)gdml(/|$)",
             "doc*",
+            "epic_aid2e_AxTrial*",
             ".*log","examples",
             ".*txt","__pycache__" # calibrations dir has sym links
         ],
