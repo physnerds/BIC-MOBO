@@ -8,7 +8,7 @@
 #    specified particle species from BIC clusters.
 #
 #  Usage if executed directly:
-#    ./BICEnergyResolution.py \
+#    ./BICClustEneReso.py \
 #        -i <input file> \
 #        -o <output file> \
 #        -p <pdg code> \

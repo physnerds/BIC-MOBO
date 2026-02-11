@@ -9,7 +9,7 @@
 #    from BIC clusters.
 #
 #  Usage if executed directly:
-#    ./BICAngularResolution.py \
+#    ./BICClustAngReso.py \
 #        -i <input file> \
 #        -o <output file> \
 #        -c <coordinate> \
