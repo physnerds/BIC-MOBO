@@ -36,13 +36,14 @@ import sys
 from podio.reading import get_reader
 
 # default arguments
-IFileDefault  = "root://dtn-eic.jlab.org//volatile/eic/EPIC/RECO/25.12.0/epic_craterlake/SINGLE/e-/5GeV/45to135deg/e-_5GeV_45to135deg.0099.eicrecon.edm4eic.root"
-OFileDefault  = "test_reso.root"
-CoordDefault  = "eta"
-PDGDefault    = 11
-HitsDefault   = "EcalBarrelImagingRecHits"
-ParsDefault   = "MCParticles"
-AssocDefault  = "EcalBarrelImagingClusterAssociations"
+IFileDefault    = "root://dtn-eic.jlab.org//volatile/eic/EPIC/RECO/25.12.0/epic_craterlake/SINGLE/e-/5GeV/45to135deg/e-_5GeV_45to135deg.0099.eicrecon.edm4eic.root"
+OFileDefault    = "test_reso.root"
+CoordDefault    = "eta"
+PDGDefault      = 11
+HitsDefault     = "EcalBarrelImagingRecHits"
+ParsDefault     = "MCParticles"
+AssocDefault    = "EcalBarrelImagingClusterAssociations"
+ExcludesDefault = list()
 
 
 # utilities ===================================================================
@@ -102,13 +103,14 @@ class Info:
 # resolution calculation ======================================================
 
 def CalculateHitAngReso(
-    ifile     = IFileDefault,
+    ifiles    = [IFileDefault],
     ofile     = OFileDefault,
     coord     = CoordDefault,
     pdg       = PDGDefault,
     hitcoll   = HitsDefault,
     parcoll   = ParsDefault,
     assoccoll = AssocDefault,
+    excludes  = ExcludesDefault,
 ):
     """CalculateHitAngReso
 
@@ -127,13 +129,14 @@ def CalculateHitAngReso(
          of angle differences
 
     Args:
-      ifile:     input file name
+      ifiles:    input file names
       ofile:     output file name
       coord:     coordinate to calculate resolution on
       pdg:       PDG code of particle species
       hitcoll:   calo reco hit collection to process
       parcoll:   mc particle collection to process
       assoccoll: cluster-particle associations to process
+      excludes:  list of layers to exclude
     Returns:
       calculated resolution
     """
@@ -192,93 +195,99 @@ def CalculateHitAngReso(
     #   - efficiency * reso
     #   - efficiency vs. par (e, eta, phi)
 
-    # event loop --------------------------------------------------------------
+    # event loops -------------------------------------------------------------
 
-    # loop through all events
-    reader = get_reader(ifile)
-    for iframe, frame in enumerate(reader.get("events")):
+    # loop through input files
+    for ifile in ifiles:
 
-        # grab relevant branches
-        rehits = frame.get(hitcoll)
-        mcpars = frame.get(parcoll)
-        assocs = frame.get(assoccoll)
+        # loop through all events
+        reader = get_reader(ifile)
+        for iframe, frame in enumerate(reader.get("events")):
 
-        # pick out the primary particle
-        primary = None
-        for par in mcpars:
-            status = par.getGeneratorStatus()
-            if par.getPDG() == pdg and status == 1:
-                primary = par
-                break
+            # grab relevant branches
+            rehits = frame.get(hitcoll)
+            mcpars = frame.get(parcoll)
+            assocs = frame.get(assoccoll)
 
-        # if for some reason no primary was found,
-        # skip event
-        if primary is None:
-            print(f"Warning! Frame {iframe} has no primary in file:\n  -- {ifile}")
-            continue
+            # pick out the primary particle
+            primary = None
+            for par in mcpars:
+                status = par.getGeneratorStatus()
+                if par.getPDG() == pdg and status == 1:
+                    primary = par
+                    break
 
-        # scrape particle info for histogramming
-        pinfo = Info()
-        pinfo.SetParInfo(coord, primary)
-        hpar.Fill(pinfo.energy)
-
-        # dictionaries to keep track of max energy
-        # hits in each layer
-        maxenes = {
-            1 : 0.0,
-            2 : 0.0,
-            3 : 0.0,
-            4 : 0.0,
-            5 : 0.0,
-            6 : 0.0
-        }
-        maxhits = dict()
-
-        # now identify the most energetic hit in 
-        # each layer associated with the primary
-        cluster = None
-        for assoc in assocs:
-
-            if primary != assoc.getSim():
+            # if for some reason no primary was found,
+            # skip event
+            if primary is None:
+                print(f"Warning! Frame {iframe} has no primary in file:\n  -- {ifile}")
                 continue
-            else:
-                cluster = assoc.getRec()
 
-            # loop through hits to check layers
-            for hit in assoc.getRec().getHits():
+            # scrape particle info for histogramming
+            pinfo = Info()
+            pinfo.SetParInfo(coord, primary)
+            hpar.Fill(pinfo.energy)
 
-                layer = hit.getLayer()
-                if layer > 6:
-                    print(f"Warning! Hit {hit.getObjectID().index} has a layer above 6 ({layer})!")
+            # dictionaries to keep track of max energy
+            # hits in each layer
+            maxenes = {
+                1 : 0.0,
+                2 : 0.0,
+                3 : 0.0,
+                4 : 0.0,
+                5 : 0.0,
+                6 : 0.0
+            }
+            maxhits = dict()
+
+            # now identify the most energetic hit in
+            # each layer associated with the primary
+            cluster = None
+            for assoc in assocs:
+
+                if primary != assoc.getSim():
                     continue
+                else:
+                    cluster = assoc.getRec()
 
-                if hit.getEnergy() > maxenes[layer]:
-                    maxenes[layer] = hit.getEnergy()
-                    maxhits[layer] = hit
+                # loop through hits to check layers
+                for hit in assoc.getRec().getHits():
 
-        if cluster is None:
-            continue
+                    layer = hit.getLayer()
+                    if layer > 6:
+                        print(f"Warning! Hit {hit.getObjectID().index} has a layer above 6 ({layer})!")
+                        continue
 
-        # fill hists for efficiency
-        heff.Fill(pinfo.energy)
-        hclust.Fill(cluster.getEnergy())
+                    if layer in excludes:
+                        continue
 
-        # pick out most upstream layer from
-        # most energetic hits
-        minlayer = min(maxhits.keys())
+                    if hit.getEnergy() > maxenes[layer]:
+                        maxenes[layer] = hit.getEnergy()
+                        maxhits[layer] = hit
 
-        # scrape info from max hit in most
-        # upstream layer
-        hinfo = Info()
-        hinfo.SetHitInfo(coord, maxhits[minlayer])
+            if cluster is None or len(maxhits) == 0:
+                continue
 
-        # calculate difference
-        hdiff.Fill(hinfo.angle - pinfo.angle)
+            # fill hists for efficiency
+            heff.Fill(pinfo.energy)
+            hclust.Fill(cluster.getEnergy())
 
-        # fill hists
-        hmax.Fill(hinfo.energy)
-        hlay.Fill(minlayer)
-        hmxl.Fill(minlayer, hinfo.energy)
+            # pick out most upstream layer from
+            # most energetic hits
+            minlayer = min(maxhits.keys())
+
+            # scrape info from max hit in most
+            # upstream layer
+            hinfo = Info()
+            hinfo.SetHitInfo(coord, maxhits[minlayer])
+
+            # calculate difference
+            hdiff.Fill(hinfo.angle - pinfo.angle)
+
+            # fill hists
+            hmax.Fill(hinfo.energy)
+            hlay.Fill(minlayer)
+            hmxl.Fill(minlayer, hinfo.energy)
 
     # eff + fwhm calculation --------------------------------------------------
 
@@ -348,8 +357,7 @@ if __name__ == "__main__":
         "--input",
         help = "Input file",
         nargs = '?',
-        const = IFileDefault,
-        default = IFileDefault,
+        action = 'append',
         type = str
     )
     parser.add_argument(
@@ -406,19 +414,37 @@ if __name__ == "__main__":
         default = AssocDefault,
         type = str
     )
+    parser.add_argument(
+        "-e",
+        "--excludes",
+        help = "Space separated list of layers to exclude",
+        nargs = '?',
+        const = ExcludesDefault,
+        default = ExcludesDefault,
+        action = 'append',
+        type = int
+    )
 
     # grab arguments
     args = parser.parse_args()
 
+    # if no input files provided, use default one
+    inputs = list()
+    if args.input is None:
+        inputs.append(IFileDefault)
+    else:
+        inputs.extend(args.input)
+
     # run analysis
     CalculateHitAngReso(
-        args.input,
+        inputs,
         args.output,
         args.coordinate,
         args.pdg,
         args.rechits,
         args.mcpars,
         args.assocs,
+        args.excludes
     )
 
 # end =========================================================================
