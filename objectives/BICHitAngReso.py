@@ -8,7 +8,15 @@
 #    eta, phi, etc.) for a specified particle species
 #    from BIC imaging hits according to this algorithm:
 #
-#      <ALGO GOES HERE>
+#      1. Find the imaging cluster associated to thrown
+#         electron
+#      2. Locate the most energetic hit in each layer
+#         of the imaging cluster
+#      3. From these, select the hit in the most
+#         upstream layer and calculate the difference
+#         in angle
+#      4. Calculate the FWHM of the distribution
+#         of angle differences
 #
 #  Usage if executed directly:
 #      ./BICHitAngReso.py \
@@ -32,7 +40,9 @@ IFileDefault  = "root://dtn-eic.jlab.org//volatile/eic/EPIC/RECO/25.12.0/epic_cr
 OFileDefault  = "test_reso.root"
 CoordDefault  = "eta"
 PDGDefault    = 11
-BranchDefault = "EcalBarrelClusterAssociations"
+HitsDefault   = "EcalBarrelImagingRecHits"
+ParsDefault   = "MCParticles"
+AssocDefault  = "EcalBarrelImagingClusterAssociations"
 
 
 # utilities ===================================================================
@@ -92,11 +102,13 @@ class Info:
 # resolution calculation ======================================================
 
 def CalculateHitAngReso(
-    ifile  = IFileDefault,
-    ofile  = OFileDefault,
-    coord  = CoordDefault,
-    pdg    = PDGDefault,
-    branch = BranchDefault
+    ifile     = IFileDefault,
+    ofile     = OFileDefault,
+    coord     = CoordDefault,
+    pdg       = PDGDefault,
+    hitcoll   = HitsDefault,
+    parcoll   = ParsDefault,
+    assoccoll = AssocDefault,
 ):
     """CalculateHitAngReso
 
@@ -104,14 +116,24 @@ def CalculateHitAngReso(
     specified species of particle from BIC imaging
     hits according to this algorithm:
 
-      <ALGO GOES HERE>
+      1. Find the imaging cluster associated to thrown
+         electron
+      2. Locate the most energetic hit in each layer
+         of the imaging cluster
+      3. From these, select the hit in the most
+         upstream layer and calculate the difference
+         in angle
+      4. Calculate the FWHM of the distribution
+         of angle differences
 
     Args:
-      ifile:  input file name
-      ofile:  output file name
-      coord:  coordinate to calculate resolution on
-      pdg:    PDG code of particle species
-      branch: EICrecon branch to analyze
+      ifile:     input file name
+      ofile:     output file name
+      coord:     coordinate to calculate resolution on
+      pdg:       PDG code of particle species
+      hitcoll:   calo reco hit collection to process
+      parcoll:   mc particle collection to process
+      assoccoll: cluster-particle associations to process
     Returns:
       calculated resolution
     """
@@ -140,6 +162,24 @@ def CalculateHitAngReso(
     hdiff = ROOT.TH1D("hAngRes", axis, 80, -0.2, 0.2)
     hdiff.Sumw2()
 
+    # create utility histograms for tracking other
+    # relevant info
+    #   - TODO consolidate histograms into a helper class,
+    #     automate creating most of them, automate
+    #     Sumw2()ing
+    hpar   = ROOT.TH1D("hParEne", "Particle energy;E_{par} [GeV]", 20, -0.5, 9.5)
+    heff   = ROOT.TH1D("hEfficiency", "Efficiency as a function of particle energy;E_{par} [GeV]", 20, -0.5, 9.5)
+    hclust = ROOT.TH1D("hClustEne", "Associated cluster energy;E_{clust} [GeV]", 20, -0.5, 9.5)
+    hmax   = ROOT.TH1D("hMaxEneHit", "Energy of most energetic hit in most upstream layer;E^{image}_{max hit} [GeV]", 100, -0.5, 9.5)
+    hlay   = ROOT.TH1D("hMinLayer", "Most upstream layer;Layer", 8, -0.5, 7.5)
+    hmxl   = ROOT.TH2D("hMaxHitEneVsMinLayer", "Energy of most energetic hit vs. most upstream layer;Layer;E^{image}_{max hit} [GeV]", 8, -0.5, 7.5, 100, -0.5, 9.5)
+    hpar.Sumw2()
+    heff.Sumw2()
+    hclust.Sumw2()
+    hmax.Sumw2()
+    hlay.Sumw2()
+    hmxl.Sumw2()
+
     # TODO add other useful histograms
     #   - par (e, r, coord)
     #   - all hit (e, r, coord), (x, y, z)
@@ -156,22 +196,12 @@ def CalculateHitAngReso(
 
     # loop through all events
     reader = get_reader(ifile)
-    npars  = 0
-    nreco  = 0
     for iframe, frame in enumerate(reader.get("events")):
 
-        # TEST
-        #if iframe == 10:
-        #    break
-
-        # TEST
-        print(f"  -- Event {iframe}")
-
         # grab relevant branches
-        #   - TODO make configurable 
-        mcpars = frame.get("MCParticles")
-        assocs = frame.get("EcalBarrelImagingClusterAssociations")
-        rehits = frame.get("EcalBarrelImagingRecHits")
+        rehits = frame.get(hitcoll)
+        mcpars = frame.get(parcoll)
+        assocs = frame.get(assoccoll)
 
         # pick out the primary particle
         primary = None
@@ -186,12 +216,11 @@ def CalculateHitAngReso(
         if primary is None:
             print(f"Warning! Frame {iframe} has no primary in file:\n  -- {ifile}")
             continue
-        else:
-            npars += 1
 
         # scrape particle info for histogramming
         pinfo = Info()
         pinfo.SetParInfo(coord, primary)
+        hpar.Fill(pinfo.energy)
 
         # dictionaries to keep track of max energy
         # hits in each layer
@@ -207,10 +236,13 @@ def CalculateHitAngReso(
 
         # now identify the most energetic hit in 
         # each layer associated with the primary
+        cluster = None
         for assoc in assocs:
 
             if primary != assoc.getSim():
                 continue
+            else:
+                cluster = assoc.getRec()
 
             # loop through hits to check layers
             for hit in assoc.getRec().getHits():
@@ -224,10 +256,12 @@ def CalculateHitAngReso(
                     maxenes[layer] = hit.getEnergy()
                     maxhits[layer] = hit
 
-        if len(maxhits) == 0:
+        if cluster is None:
             continue
-        else:
-            nreco += 1
+
+        # fill hists for efficiency
+        heff.Fill(pinfo.energy)
+        hclust.Fill(cluster.getEnergy())
 
         # pick out most upstream layer from
         # most energetic hits
@@ -241,45 +275,57 @@ def CalculateHitAngReso(
         # calculate difference
         hdiff.Fill(hinfo.angle - pinfo.angle)
 
-    # fwhm calculation --------------------------------------------------------
+        # fill hists
+        hmax.Fill(hinfo.energy)
+        hlay.Fill(minlayer)
+        hmxl.Fill(minlayer, hinfo.energy)
 
-    # extract hist properties for fit bounds
-    mudiff  = hdiff.GetMean()
-    rmsdiff = hdiff.GetRMS()
-    intdiff = hdiff.Integral()
+    # eff + fwhm calculation --------------------------------------------------
 
-    # fit hist with a double gaussian to extract
-    # main peak
-    fdiff = ROOT.TF1("fAngRes", "gaus(0)+gaus(3)", -0.07, 0.07)
+    # calculate efficiency
+    heff.Divide(heff, hpar, 1.0, 1.0)
+
+    # extract hist properties to initialize fit
+    muhist  = hdiff.GetMean()
+    rmshist = hdiff.GetRMS()
+    inthist = hdiff.Integral()
+
+    # set up a gaussian to extract main peak
+    #   - FIXME func range should be tied to hist range
+    fdiff = ROOT.TF1("fAngRes", "gaus(0)", -0.2, 0.2)
     fdiff.SetParameters(
-        intdiff,
-        mudiff,
-        rmsdiff,
-        intdiff,
-        mudiff,
-        rmsdiff
+        inthist,
+        muhist,
+        rmshist
     )
-    fdiff.SetParLimits(1, -0.5 * rmsdiff, 0.5 * rmsdiff)
-    fdiff.SetParLimits(2, 0.0, rmsdiff)
-    fdiff.SetParLimits(3, -0.5 * rmsdiff, 0.5 * rmsdiff)
-    fdiff.SetParLimits(4, 0.0, rmsdiff)
-    hdiff.Fit("fAngRes", "RB")
+
+    # fit histogram over nonzero bins
+    ifirst   = hdiff.FindFirstBinAbove(0.0)
+    ilast    = hdiff.FindLastBinAbove(0.0)
+    first_lo = hdiff.GetBinLowEdge(ifirst)
+    last_hi  = hdiff.GetBinLowEdge(ilast + 1)
+    hdiff.Fit("fAngRes", "", "", first_lo, last_hi)
 
     # calculate full-width-half-max
-    #   - FIXME this isn't working yet!
-    width_lo   = mudiff - (0.5 * rmsdiff)
-    width_hi   = mudiff + (0.5 * rmsdiff)
-    maximum    = fdiff.Eval(mudiff)
-    halfmax_lo = fdiff.GetX(maximum / 2.0, width_lo, mudiff)
-    halfmax_hi = fdiff.GetX(maximum / 2.0, mudiff, width_hi)
+    mumain     = fdiff.GetParameter(1)
+    maximum    = fdiff.Eval(mumain)
+    halfmax_lo = fdiff.GetX(maximum / 2.0, first_lo, mumain)
+    halfmax_hi = fdiff.GetX(maximum / 2.0, mumain, last_hi)
     fwhm       = halfmax_hi - halfmax_lo
 
     # wrap up script ----------------------------------------------------------
 
     # save objects
+    #   - TODO automate hist saving
     with ROOT.TFile(ofile, "recreate") as out:
-        out.WriteObject(hdiff, "hAngRes")
         out.WriteObject(fdiff, "fAngRes")
+        out.WriteObject(hdiff, "hAngRes")
+        out.WriteObject(hpar, "hParEne")
+        out.WriteObject(heff, "hEfficiency")
+        out.WriteObject(hclust, "hClustEne")
+        out.WriteObject(hmax, "hMaxHitEne")
+        out.WriteObject(hlay, "hMinLayer")
+        out.WriteObject(hmxl, "hMaxHitEneVsMinLayer")
         out.Close()
 
     # write out key info to a text file for
@@ -334,12 +380,30 @@ if __name__ == "__main__":
         type = int
     )
     parser.add_argument(
-        "-b",
-        "--branch",
-        help = "Branch to use",
+        "-r",
+        "--rechits",
+        help = "Hit collection to use",
         nargs = '?',
-        const = BranchDefault,
-        default = BranchDefault,
+        const = HitsDefault,
+        default = HitsDefault,
+        type = str
+    )
+    parser.add_argument(
+        "-m",
+        "--mcpars",
+        help = "MC particle collection to use",
+        nargs = '?',
+        const = ParsDefault,
+        default = ParsDefault,
+        type = str
+    )
+    parser.add_argument(
+        "-a",
+        "--assocs",
+        help = "Cluster-particle associations to use",
+        nargs = '?',
+        const = AssocDefault,
+        default = AssocDefault,
         type = str
     )
 
@@ -347,6 +411,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # run analysis
-    CalculateHitAngReso(args.input, args.output, args.coordinate, args.pdg)
+    CalculateHitAngReso(
+        args.input,
+        args.output,
+        args.coordinate,
+        args.pdg,
+        args.rechits,
+        args.mcpars,
+        args.assocs,
+    )
 
 # end =========================================================================
