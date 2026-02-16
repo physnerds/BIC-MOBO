@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # =============================================================================
-## @file   BICAngularResolution.py
+## @file   BICClustAngReso.py
 #  @author Derek Anderson
 #  @date   12.09.2025
 # -----------------------------------------------------------------------------
 ## @brief Script to compute angular resolutions (in
-#    eta, phi) for a specified particle species
+#    eta, phi, etc.) for a specified particle species
+#    from BIC clusters.
 #
 #  Usage if executed directly:
-#    ./BICAngularResolution.py \
+#    ./BICClustAngReso.py \
 #        -i <input file> \
 #        -o <output file> \
 #        -c <coordinate> \
@@ -31,17 +32,17 @@ PDGDefault    = 11
 BranchDefault = "EcalBarrelClusterAssociations"
 
 
-def CalculateAngReso(
+def CalculateClustAngReso(
     ifile  = IFileDefault,
     ofile  = OFileDefault,
     coord  = CoordDefault,
     pdg    = PDGDefault,
     branch = BranchDefault
 ):
-    """CalculateAngReso
+    """CalculateClustAngReso
 
     A function to calculate angular resolution for a 
-    specified species of particle.
+    specified species of particle from BIC clusters.
 
     Args:
       ifile:  input file name

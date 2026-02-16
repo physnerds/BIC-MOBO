@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # =============================================================================
-## @file   BICEnergyResolution.py
+## @file   BICClustEneReso.py
 #  @author Derek Anderson
 #  @date   08.28.2025
 # -----------------------------------------------------------------------------
 ## @brief Script to compute energy resolution for a
-#    specified particle species
+#    specified particle species from BIC clusters.
 #
 #  Usage if executed directly:
-#    ./BICEnergyResolution.py \
+#    ./BICClustEneReso.py \
 #        -i <input file> \
 #        -o <output file> \
 #        -p <pdg code> \
@@ -29,7 +29,7 @@ PDGDefault    = 11
 BranchDefault = "EcalBarrelClusterAssociations"
 
 
-def CalculateEneReso(
+def CalculateClustEneReso(
     ifile  = IFileDefault,
     ofile  = OFileDefault,
     pdg    = PDGDefault,
@@ -38,7 +38,7 @@ def CalculateEneReso(
     """CalculateEneReso
 
     A function to calculate energy resolution for a 
-    specified species of particle.
+    specified species of particle from BIC clusters.
 
     Args:
       ifile:  input file name
