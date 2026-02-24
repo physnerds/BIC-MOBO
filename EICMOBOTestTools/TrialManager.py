@@ -225,6 +225,8 @@ class TrialManager:
             script.write("set -e\n\n")
             for command in commands:
                 script.write(command + "\n\n")
+                if ("thisepic.sh" in command):
+                    script.write("export DETECTOR_PATH="+self.cfgRun["det_path"]+" \n\n")
 
         # make sure script can be run
         os.chmod(runPath, 0o777)

@@ -13,6 +13,26 @@ import json
 import os
 import sys
 
+def _expand_env_vars(obj):
+    """_expand_env_vars
+
+    Recursively expands environment variables in strings
+    within dictionaries and lists.
+
+    Args:
+      obj: object to process (dict, list, str, or other)
+    Returns:
+      object with environment variables expanded
+    """
+    if isinstance(obj, dict):
+        return {key: _expand_env_vars(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [_expand_env_vars(item) for item in obj]
+    elif isinstance(obj, str):
+        return os.path.expandvars(obj)
+    else:
+        return obj
+
 def ReadJsonFile(jsonFile):
     """ReadJsonFile
 
@@ -29,6 +49,7 @@ def ReadJsonFile(jsonFile):
         sys.exit(1)
     with open(jsonFile) as f:
         data = json.loads(f.read())
+    data = _expand_env_vars(data)
     return data
 
 def GetParameter(param, file):

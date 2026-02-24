@@ -1,3 +1,7 @@
 objectives/__pycache__
 EICMOBOTestTools/__pycache__
 ref/
+run/
+out/
+bic_mobo.egg-info/
+AID2ETestTools/
