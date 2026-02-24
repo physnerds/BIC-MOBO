@@ -18,13 +18,16 @@
 #      4. Calculate the FWHM of the distribution
 #         of angle differences
 #
-#  Usage if executed directly:
+#  @usage Example usage if executed directly:
 #      ./BICHitAngReso.py \
-#          -i <input file> \
+#          -i <input file 1> -i <input file 2> ... \
 #          -o <output file> \
-#          -c <coordinate> \
-#          -p <pdg code> \
-#          -b <branch> (optional)
+#          -c <coordinate: eta, phi, ...> \
+#          -p <pdg code: 11, 22, ...> \
+#          -r <reco hit collection> (optional) \
+#          -m <mc particle collection> (optional) \
+#          -a <mc-cluster associtions> (optional)
+#          -e <layer to exclude> -e <layer to exclude> ...
 # =============================================================================
 
 from dataclasses import dataclass
