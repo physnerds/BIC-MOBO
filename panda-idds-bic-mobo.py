@@ -6,6 +6,7 @@ import sys,argparse
 
 import AID2ETestTools as att
 import EICMOBOTestTools as emt
+
 # Global parameters here (Only needed for multi-step jobs)
 global_parameters = {}
 
@@ -60,10 +61,11 @@ def RunObjectives(*args, **kwargs):
     # create trial manager
     trial = emt.TrialManager(run_path,
                              par_path,
-                             obj_path)
+                             obj_path,
+                             tag=tag)
 
     # create and run script
-    script, ofiles = trial.MakeTrialScript(tag, kwargs)
+    script, ofiles = trial.MakeTrialScript(kwargs)
     #Make sure that the script exists
     print("Printing the scripts and ofiles ", script,ofiles)
     if not os.path.exists(script):
@@ -140,8 +142,8 @@ if __name__ == "__main__":
     #eic_shell = cfg_run["eic_shell"]
     #
     # convert configuration parameters to ax-compliant ones
-    cfg_par = att.ConvertParamConfig(cfg_par)
-    cfg_obj = att.ConvertObjectConfig(cfg_obj)
+    cfg_par, cfg_par_cons = att.ConvertParamConfig(cfg_par)
+    cfg_obj, cfg_obj_cons = att.ConvertObjectConfig(cfg_obj)
     # print the configuration parameters and objectives
     print("Configuration parameters: ", cfg_par)
     print("Configuration objectives: ", cfg_obj)
@@ -189,6 +191,8 @@ if __name__ == "__main__":
         'export SINGULARITY_OPTIONS="--bind /cvmfs:/cvmfs,$(pwd):$(pwd)";',
         "export SIF=/cvmfs/singularity.opensciencegrid.org/eic/eic_ci:nightly;",
         "export SINGULARITY_BINDPATH=/cvmfs;",
+        "export BIC_MOBO=$(pwd);", # Set the BIC_MOBO environment variable to the current working directory...could have a flag to set this to something else if needed
+        "echo BIC_MOBO path: $BIC_MOBO;",
         "env;"
     ]
     init_env = " ".join(init_env)
@@ -199,7 +203,7 @@ if __name__ == "__main__":
         "name": dset_name_prefix,
         "init_env": init_env,
         "cloud": "US",
-        "queue": "BNL_PanDA_1", # Test runs locally
+        "queue": "BNL_PanDA_2", # Test runs locally # Other options are BNL_OSG_PanDA_2, BNL_OSG_PanDA_1, BNL_PanDA_1, BNL_PanDA_2
         "source_dir":None,
         "source_dir_parent_level":1,
         "exclude_source_files":[
@@ -225,7 +229,7 @@ if __name__ == "__main__":
     #Create panda runner
     print("Creating PanDA iDDS runner")
     runner = PanDAiDDSRunner(**panda_attrs)
-
+    #runner = JobLibRunner(n_jobs=-1)
     # Now we can run the trial
     # This is not a multi step function...
     logging.info("Creating scheduler for a simple panda job")
