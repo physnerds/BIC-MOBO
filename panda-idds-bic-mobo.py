@@ -1,6 +1,4 @@
 import logging
-import json
-import getpass, os
 from itertools import product
 import sys,argparse
 
@@ -10,98 +8,49 @@ import EICMOBOTestTools as emt
 # Global parameters here (Only needed for multi-step jobs)
 global_parameters = {}
 
-"""
-# Panda runner script for BIC-MOBO
-def RunPandaTrial(*args, **kwargs):
-    #RunPandaTrial
-    #Wrapper to run a single trial
-    #of BIC-MOBO using the Panda runner.
-    #Args:
-    #ofResEle: output file to write electron resolution
-
-    from EICMOBOTestTools import TrialManager as emt
-    trialMgr = emt.TrialManager(
-        run = kwargs["run_config"],
-        par = kwargs["par_config"],
-        ana = kwargs["obj_config"]
-    )
-
-    # more on this later
-"""
 
 
 def RunObjectives(*args, **kwargs):
-    # import datetime
-    import os,sys
-    import datetime,re,argparse
-    import subprocess
-    import pandas,numpy
-    # create tag for trial 
+    """Wrapper for RunObjectives from interfaces.RunObjectives
+    
+    This function creates a trial tag and calls the main
+    RunObjectives implementation, then formats the return
+    value for the scheduler.
+    
+    Args:
+        *args: positional arguments (unused)
+        **kwargs: keyword arguments containing trial parameters
+        
+    Returns:
+        dict: dictionary of objectives for the scheduler
+    """
+    import datetime
+    import re
+    from interfaces.RunObjectives import RunObjectives as RunObjectivesImpl
+    
+    # Log start of trial with parameters
+    print(f"\n{'='*80}")
+    print(f"Starting RunObjectives with parameters: {kwargs}")
+    print(f"{'='*80}\n")
+    
+    # create tag for trial
     print("Execute the thisepic.sh script to setup the environment")
     time = str(datetime.datetime.now())
     time = re.sub(r'[.\-:\ ]', '', time)
     tag = f"AxTrial{time}"
-
-    # extract path to script being run currently
-    main_path, main_file = emt.SplitPathAndFile(
-        os.path.realpath(__file__)
-    )
-
-    # determine paths to config files
-    #   -- FIXME this is brittle!
-    run_path = main_path + "/configuration/run.config"
-    par_path = main_path + "/configuration/parameters.config"
-    obj_path = main_path + "/configuration/objectives.config"
-
-    # parse run config to extract path to eic-shell
-    cfg_run   = emt.ReadJsonFile(run_path)
-    eic_shell = cfg_run["eic_shell"]
-    det_path = cfg_run["det_path"]
-    print(f"eic shell path: {eic_shell} and det path: {det_path}")
-    # create trial manager
-    trial = emt.TrialManager(run_path,
-                             par_path,
-                             obj_path,
-                             tag=tag)
-
-    # create and run script
-    script, ofiles = trial.MakeTrialScript(kwargs)
-    #Make sure that the script exists
-    print("Printing the scripts and ofiles ", script,ofiles)
-    if not os.path.exists(script):
-        raise FileNotFoundError(f"Script not found: {script}")
-    else:
-        print(f"Script found: {script}")
-        os.chmod(script, 0o755)  # Ensure the script is executable
     
-    #print the content of the script
-    content = subprocess.run(['cat', script], capture_output=True, text=True)
-    print("Script content:\n", content.stdout)
+    # Call the main implementation
+    # TODO - Check the RunObjectivesImpl function to see if it needs the tag or other parameters, and pass them accordingly
+    objectives = RunObjectivesImpl(tag=tag, **kwargs)
     
-    result = subprocess.run([eic_shell, "--", script], capture_output=True, text=True, check=False)
-    if returncode := result.returncode != 0:
-        print("STDOUT:", result.stdout)
-        print("STDERR:", result.stderr)
-        raise RuntimeError(f"Trial script failed with return code {returncode}")
+    print(f"Objectives returned: {objectives}")
+    
+    # For backward compatibility with scheduler expecting "objective" key,
+    # if there's only one objective, return it as "objective"
+    # Otherwise return the full dictionary
+    #  FIXME - This needs to be verified that single objective is expected to be returned as "objective" key.
+    return objectives if len(objectives) > 1 else {"objective": list(objectives.values())[0]}
 
-    # write out values of parameters to
-    # output file(s) for analysis later
-    ofResEle = ofiles["ElectronEnergyResolution"].replace(".root", ".txt")
-    with open(ofResEle, 'a') as out:
-        for param, value in kwargs.items():
-            out.write("\n")
-            out.write(f"{value}")
-
-    # extract electron resolution
-    eResEle = None
-    with open(ofResEle, 'r') as out:
-        outData = out.readlines()
-        eResEle = float(outData[0])
-
-    # return dictionary of objectives
-    return {
-        "objective" : eResEle
-    }
 
 
 # The main function to be called by the Panda runner
@@ -112,9 +61,11 @@ if __name__ == "__main__":
     the Panda runner to execute BIC-MOBO.
     """
     #import the ax-related modules here
+    import getpass, os
     from ax.service.ax_client import AxClient, ObjectiveProperties
-    #from ax.modelbridge.registry import Generators
-    #from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
+    from ax.modelbridge.registry import Generators
+    from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
+    #from ax.generation_strategy import GenerationStrategy, GenerationStep
     from scheduler.utils.common import setup_logging
     from scheduler.job.job import JobType
     from scheduler import AxScheduler, JobLibRunner, PanDAiDDSRunner
@@ -122,8 +73,6 @@ if __name__ == "__main__":
     # setup logging
     #Available levels: "debug", "info", "warning", "error", "critical"
     setup_logging(log_level="debug")
-    logging.debug("Initializing the ax client")
-    ax_client = AxClient()
 
     # Now create the experiment
     logging.info("Create the experiment")
@@ -133,15 +82,23 @@ if __name__ == "__main__":
     # Config file paths
     par_path = os.path.join(main_path, "configuration/parameters.config")
     obj_path = os.path.join(main_path, "configuration/objectives.config")
-    #run_path = os.path.join(main_path, "configuration/run.config")
-    # Get the configuration parameters from the json file
+    exp_path = os.path.join(main_path, "configuration/problem.config")
+
+
     cfg_par = emt.ReadJsonFile(par_path)
     cfg_obj = emt.ReadJsonFile(obj_path)
-    #cfg_run = emt.ReadJsonFile(run_path)
+    # Get the configuration parameters from the json file
+    cfg_exp = emt.ReadJsonFile(exp_path)
+    logging.debug("Initializing the ax client")
 
-    #eic_shell = cfg_run["eic_shell"]
-    #
-    # convert configuration parameters to ax-compliant ones
+    gstrat = GenerationStrategy(
+        steps=[
+        GenerationStep(model=Generators.SOBOL, num_trials=cfg_exp["n_sobol"],min_trials_observed=cfg_exp["min_sobol"], max_parallelism=cfg_exp["n_sobol"]),
+        GenerationStep(model=Generators.BOTORCH_MODULAR, num_trials=-1, max_parallelism=cfg_exp["max_parallel_gen"])
+    ]
+    )
+    ax_client = AxClient(generation_strategy=gstrat)
+
     cfg_par, cfg_par_cons = att.ConvertParamConfig(cfg_par)
     cfg_obj, cfg_obj_cons = att.ConvertObjectConfig(cfg_obj)
     # print the configuration parameters and objectives
@@ -152,23 +109,21 @@ if __name__ == "__main__":
         name="BIC-MOBO-Panda-Experiment",
         parameters = cfg_par,
         objectives = cfg_obj,
+        parameter_constraints = cfg_par_cons
         )
 
     # Now need to initialize the environment for the Panda runner
     # setup_mamba contains ax related environment that might be neded during a PanDA job. 
     logging.info("Initializing the environment for the Panda runner")
+    # TODO - Still need to verify that this initialization is correct. Tested locally but not in remote cluster as panda job.
     init_env = [
         "command -v singularity &> /dev/null || export SINGULARITY=/cvmfs/oasis.opensciencegrid.org/mis/singularity/current/bin/singularity;",
-        "export AIDE_HOME=$(pwd);",
         "export AIDE_WORKDIR=$(pwd);",
         "export SIF=/cvmfs/singularity.opensciencegrid.org/eic/eic_ci:nightly;",
-        "export DETECTOR_PATH=${SIF}/opt/detector/epic-main/share/epic;",
-        "echo DETECTOR_PATH: ${DETECTOR_PATH};",
-        "echo AIDE_HOME: ${AIDE_HOME};",
         "echo AIDE_WORKDIR: ${AIDE_WORKDIR};",
         # Also copy the epic files...
-        "mkdir -p ${AIDE_WORKDIR}/share/epic;",
-        "${SINGULARITY} exec --bind $(pwd):$(pwd) ${SIF} /bin/bash -c \"cp -RLrf /opt/detector/epic-main/share/epic/* \${AIDE_WORKDIR}/share/epic/\";",
+        #"mkdir -p ${AIDE_WORKDIR}/epic/share/epic;",
+        #"${SINGULARITY} exec --bind $(pwd):$(pwd) ${SIF} /bin/bash -c \"cp -RLrf /opt/detector/epic-main/share/epic/* ${AIDE_WORKDIR}/epic/share/epic/\";",
         # Install micromamba (minimal)
         "export MAMBA_ROOT_PREFIX=${AIDE_WORKDIR}/micromamba;",
         "export MAMBA_EXE=${MAMBA_ROOT_PREFIX}/bin/micromamba;",
@@ -203,25 +158,19 @@ if __name__ == "__main__":
         "name": dset_name_prefix,
         "init_env": init_env,
         "cloud": "US",
-        "queue": "BNL_PanDA_2", # Test runs locally # Other options are BNL_OSG_PanDA_2, BNL_OSG_PanDA_1, BNL_PanDA_1, BNL_PanDA_2
+        "queue": "BNL_PanDA_1", # Test runs locally # Other options are BNL_OSG_PanDA_2, BNL_OSG_PanDA_1, BNL_PanDA_1, BNL_PanDA_2
         "source_dir":None,
         "source_dir_parent_level":1,
         "exclude_source_files":[
             r"(^|/)\.[^/]+", # hidden files and directories
-            r"(^|/)out(/|$)",# directories called out and run are excluded
-            r"(^|/)run(/|$)",
-            r"(^|/)share(/|$)",
-            r"(^|/)calibrations(/|$)",
-            r"(^|/)fieldmaps(/|$)",
-            r"(^|/)gdml(/|$)",
+            "out","run","epic","share","calibrations","fieldmaps","gdml",
             "doc*",
-            "epic_aid2e_AxTrial*",
             ".*log","examples",
             ".*txt","__pycache__" # calibrations dir has sym links
         ],
         "max_walltime":3600,
-        "core_count":1,
-        "total_memory":4000,
+        "core_count":2,
+        "total_memory":8000,
         "enable_separate_log":True,
         "job_dir":None,
     }
@@ -229,259 +178,11 @@ if __name__ == "__main__":
     #Create panda runner
     print("Creating PanDA iDDS runner")
     runner = PanDAiDDSRunner(**panda_attrs)
-    #runner = JobLibRunner(n_jobs=-1)
-    # Now we can run the trial
-    # This is not a multi step function...
     logging.info("Creating scheduler for a simple panda job")
     scheduler = AxScheduler(ax_client, runner)
     #set the objective
     scheduler.set_objective_function(RunObjectives)
     logging.info("Starting the optimization")
-
-    best_param = scheduler.run_optimization(max_trials=10)
-    print("Best parameters found: ", best_param)
-
-
-import logging
-import json
-import getpass, os
-from itertools import product
-import sys,argparse
-
-import AID2ETestTools as att
-import EICMOBOTestTools as emt
-
-# Global parameters here (Only needed for multi-step jobs)
-global_parameters = {}
-
-"""
-# Panda runner script for BIC-MOBO
-def RunPandaTrial(*args, **kwargs):
-    #RunPandaTrial
-    #Wrapper to run a single trial
-    #of BIC-MOBO using the Panda runner.
-    #Args:
-    #ofResEle: output file to write electron resolution
-
-    from EICMOBOTestTools import TrialManager as emt
-    trialMgr = emt.TrialManager(
-        run = kwargs["run_config"],
-        par = kwargs["par_config"],
-        ana = kwargs["obj_config"]
-    )
-
-    # more on this later
-"""
-
-
-def RunObjectives(*args, **kwargs):
-    # import datetime
-    import os,sys
-    import datetime,re,argparse
-    import subprocess
-    import pandas,numpy
-    # create tag for trial 
-    print("Execute the thisepic.sh script to setup the environment")
-    time = str(datetime.datetime.now())
-    time = re.sub(r'[.\-:\ ]', '', time)
-    tag = f"AxTrial{time}"
-
-    # extract path to script being run currently
-    main_path, main_file = emt.SplitPathAndFile(
-        os.path.realpath(__file__)
-    )
-
-    # determine paths to config files
-    #   -- FIXME this is brittle!
-    run_path = main_path + "/configuration/run.config"
-    par_path = main_path + "/configuration/parameters.config"
-    obj_path = main_path + "/configuration/objectives.config"
-
-    # parse run config to extract path to eic-shell
-    cfg_run   = emt.ReadJsonFile(run_path)
-    eic_shell = cfg_run["eic_shell"]
-    det_path = cfg_run["det_path"]
-    print(f"eic shell path: {eic_shell} and det path: {det_path}")
-    # create trial manager
-    trial = emt.TrialManager(run_path,
-                             par_path,
-                             obj_path,
-                             tag=tag)
-
-    # create and run script
-    script, ofiles = trial.MakeTrialScript(kwargs)
-    #Make sure that the script exists
-    print("Printing the scripts and ofiles ", script,ofiles)
-    if not os.path.exists(script):
-        raise FileNotFoundError(f"Script not found: {script}")
-    else:
-        print(f"Script found: {script}")
-        os.chmod(script, 0o755)  # Ensure the script is executable
-    
-    #print the content of the script
-    content = subprocess.run(['cat', script], capture_output=True, text=True)
-    print("Script content:\n", content.stdout)
-    
-    result = subprocess.run([eic_shell, "--", script], capture_output=True, text=True, check=False)
-    if returncode := result.returncode != 0:
-        print("STDOUT:", result.stdout)
-        print("STDERR:", result.stderr)
-        raise RuntimeError(f"Trial script failed with return code {returncode}")
-
-    # write out values of parameters to
-    # output file(s) for analysis later
-    ofResEle = ofiles["ElectronEnergyResolution"].replace(".root", ".txt")
-    with open(ofResEle, 'a') as out:
-        for param, value in kwargs.items():
-            out.write("\n")
-            out.write(f"{value}")
-
-    # extract electron resolution
-    eResEle = None
-    with open(ofResEle, 'r') as out:
-        outData = out.readlines()
-        eResEle = float(outData[0])
-
-    # return dictionary of objectives
-    return {
-        "objective" : eResEle
-    }
-
-
-# The main function to be called by the Panda runner
-if __name__ == "__main__":
-    """Panda BIC-MOBO main
-
-    Main function to be called by
-    the Panda runner to execute BIC-MOBO.
-    """
-    #import the ax-related modules here
-    from ax.service.ax_client import AxClient, ObjectiveProperties
-    #from ax.modelbridge.registry import Generators
-    #from ax.modelbridge.generation_strategy import GenerationStrategy, GenerationStep
-    from scheduler.utils.common import setup_logging
-    from scheduler.job.job import JobType
-    from scheduler import AxScheduler, JobLibRunner, PanDAiDDSRunner
-
-    # setup logging
-    #Available levels: "debug", "info", "warning", "error", "critical"
-    setup_logging(log_level="debug")
-    logging.debug("Initializing the ax client")
-    ax_client = AxClient()
-
-    # Now create the experiment
-    logging.info("Create the experiment")
-    # parameters are the detector parameters to be optimized.
-    # I will assume that the main path is given by the environemnt variable AIDE_WORKDIR
-    main_path = os.getenv("AIDE_WORKDIR", os.getcwd())
-    # Config file paths
-    par_path = os.path.join(main_path, "configuration/parameters.config")
-    obj_path = os.path.join(main_path, "configuration/objectives.config")
-    #run_path = os.path.join(main_path, "configuration/run.config")
-    # Get the configuration parameters from the json file
-    cfg_par = emt.ReadJsonFile(par_path)
-    cfg_obj = emt.ReadJsonFile(obj_path)
-    #cfg_run = emt.ReadJsonFile(run_path)
-
-    #eic_shell = cfg_run["eic_shell"]
-    #
-    # convert configuration parameters to ax-compliant ones
-    cfg_par, cfg_par_cons = att.ConvertParamConfig(cfg_par)
-    cfg_obj, cfg_obj_cons = att.ConvertObjectConfig(cfg_obj)
-    # print the configuration parameters and objectives
-    print("Configuration parameters: ", cfg_par)
-    print("Configuration objectives: ", cfg_obj)
-    print("*****************************************************************")
-    ax_client.create_experiment(
-        name="BIC-MOBO-Panda-Experiment",
-        parameters = cfg_par,
-        objectives = cfg_obj,
-        )
-
-    # Now need to initialize the environment for the Panda runner
-    # setup_mamba contains ax related environment that might be neded during a PanDA job. 
-    logging.info("Initializing the environment for the Panda runner")
-    init_env = [
-        "command -v singularity &> /dev/null || export SINGULARITY=/cvmfs/oasis.opensciencegrid.org/mis/singularity/current/bin/singularity;",
-        "export AIDE_HOME=$(pwd);",
-        "export AIDE_WORKDIR=$(pwd);",
-        "export SIF=/cvmfs/singularity.opensciencegrid.org/eic/eic_ci:nightly;",
-        "export DETECTOR_PATH=${SIF}/opt/detector/epic-main/share/epic;",
-        "echo DETECTOR_PATH: ${DETECTOR_PATH};",
-        "echo AIDE_HOME: ${AIDE_HOME};",
-        "echo AIDE_WORKDIR: ${AIDE_WORKDIR};",
-        # Also copy the epic files...
-        "mkdir -p ${AIDE_WORKDIR}/share/epic;",
-        "${SINGULARITY} exec --bind $(pwd):$(pwd) ${SIF} /bin/bash -c \"cp -RLrf /opt/detector/epic-main/share/epic/* \${AIDE_WORKDIR}/share/epic/\";",
-        # Install micromamba (minimal)
-        "export MAMBA_ROOT_PREFIX=${AIDE_WORKDIR}/micromamba;",
-        "export MAMBA_EXE=${MAMBA_ROOT_PREFIX}/bin/micromamba;",
-        "mkdir -p ${MAMBA_ROOT_PREFIX}/bin;",
-        'curl -Ls https://micromamba.snakepit.net/api/micromamba/linux-64/latest | tar -xj -C ${MAMBA_ROOT_PREFIX} bin/micromamba;',
-        "chmod a+rx ${MAMBA_ROOT_PREFIX};",
-        "${MAMBA_EXE} config append --system channels conda-forge;",
-        # Install Python 3.13
-        "${MAMBA_EXE} install -y -r ${MAMBA_ROOT_PREFIX} -n base python=3.13;",
-        "${MAMBA_EXE} clean -a -y;",
-        # Activate micromamba and install packages via pip
-        'eval "$(${MAMBA_EXE} shell hook -s posix)";',
-        "micromamba activate base;",
-        "pip install pandas seaborn botorch ax-platform==1.0.0 numpy matplotlib torch;",
-        # Make sure to use mamba python
-        'export PATH=${MAMBA_ROOT_PREFIX}/bin:$PATH;',
-        #echo the python being used
-        'echo "python version being used " $(python --version; which python);',
-        # Singularity setup
-        'export SINGULARITY_OPTIONS="--bind /cvmfs:/cvmfs,$(pwd):$(pwd)";',
-        "export SIF=/cvmfs/singularity.opensciencegrid.org/eic/eic_ci:nightly;",
-        "export SINGULARITY_BINDPATH=/cvmfs;",
-        "export BIC_MOBO=$(pwd);", # Set the BIC_MOBO environment variable to the current working directory...could have a flag to set this to something else if needed
-        "echo BIC_MOBO path: $BIC_MOBO;",
-        "env;"
-    ]
-    init_env = " ".join(init_env)
-
-    #Now create panda_attr dictionary
-    dset_name_prefix = "user."+getpass.getuser()+".bic-mobo-panda-idds"
-    panda_attrs = {
-        "name": dset_name_prefix,
-        "init_env": init_env,
-        "cloud": "US",
-        "queue": "BNL_PanDA_2", # Test runs locally # Other options are BNL_OSG_PanDA_2, BNL_OSG_PanDA_1, BNL_PanDA_1, BNL_PanDA_2
-        "source_dir":None,
-        "source_dir_parent_level":1,
-        "exclude_source_files":[
-            r"(^|/)\.[^/]+", # hidden files and directories
-            r"(^|/)out(/|$)",# directories called out and run are excluded
-            r"(^|/)run(/|$)",
-            r"(^|/)share(/|$)",
-            r"(^|/)calibrations(/|$)",
-            r"(^|/)fieldmaps(/|$)",
-            r"(^|/)gdml(/|$)",
-            "doc*",
-            "epic_aid2e_AxTrial*",
-            ".*log","examples",
-            ".*txt","__pycache__" # calibrations dir has sym links
-        ],
-        "max_walltime":3600,
-        "core_count":1,
-        "total_memory":4000,
-        "enable_separate_log":True,
-        "job_dir":None,
-    }
-
-    #Create panda runner
-    print("Creating PanDA iDDS runner")
-    runner = PanDAiDDSRunner(**panda_attrs)
-    #runner = JobLibRunner(n_jobs=-1)
-    # Now we can run the trial
-    # This is not a multi step function...
-    logging.info("Creating scheduler for a simple panda job")
-    scheduler = AxScheduler(ax_client, runner)
-    #set the objective
-    scheduler.set_objective_function(RunObjectives)
-    logging.info("Starting the optimization")
-
-    best_param = scheduler.run_optimization(max_trials=10)
-    print("Best parameters found: ", best_param)
-
+    # FIXME Jobs are not landing in the queue. Cannot find job information in pandamon. Tested with a simple panda test function as well....
+    best_param = scheduler.run_optimization(max_trials=cfg_exp["n_max_trials"])
+    print("best parameters: ", best_param)
