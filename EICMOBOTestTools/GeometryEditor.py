@@ -145,7 +145,7 @@ class GeometryEditor:
         return found
 
     def CopyGeoToRunDir(self):
-        """GopyGeoToRunDir
+        """CopyGeoToRunDir
 
         Copies geometry specifed by `det_path` to run
         directory of trial. Should be called BEFORE
@@ -266,6 +266,11 @@ class GeometryEditor:
         # step 4: now identify all YAML configurations
         #   that contain one of the updated files
         config  = self.detPath + "/configurations"
+        
+        # create configurations directory if it doesn't exist
+        if not os.path.exists(config):
+            os.makedirs(config)
+        
         for file in os.listdir(config):
 
             full = config + "/" + file
@@ -311,8 +316,10 @@ class GeometryEditor:
         #    DD4hep geometries! This will be dealt with when we
         #    transition to AID2E-framework...
         installPath = self.detPath + "/install/share/epic/"
-        fullConfig  = installPath + FileManager.GetNewName("epic_full.xml", tag)
+        #fullConfig  = installPath + FileManager.GetNewName("epic_full.xml", tag)
+        fullConfig  = installPath + "epic_full.xml"
         defConfig   = installPath + FileManager.GetNewName("epic.xml", tag)
+        print("FullConfig and detConfig ", fullConfig, defConfig)
         return "cp " + fullConfig + " " + defConfig
 
     def MakeGeoRecompileCommand(self):
@@ -324,19 +331,25 @@ class GeometryEditor:
         Returns:
           commands to be run
         """
+        # Ensure CMakeLists.txt exists for geometry recompilation
+        cmake_path = os.path.join(self.detPath, "CMakeLists.txt")
+        if not os.path.exists(cmake_path):
+            print(f"CMakeLists.txt not found, cloning epic repository to {self.detPath}...")
+            if os.path.exists(self.detPath):
+                shutil.rmtree(self.detPath)
+            subprocess.run(
+                ["git", "clone", "https://github.com/eic/epic.git", self.detPath, "--depth", "1"],
+                check=True
+            )
 
-        # commands to run to recompile geo
-        comps  = [
+        # Return recompilation commands
+        return "\n".join([
             f'cd {self.detPath}',
             'cmake -B build -S . -DCMAKE_INSTALL_PREFIX=install',
             'cmake --build build',
             'cmake --install build',
             'cd -'
-        ]
-        comp = "\n".join(comps)
-
-        # return full command
-        return comp
+        ])
 
     def MakeOverlapCheckCommand(self, tag):
         """MakeOverlapCheckCommand
