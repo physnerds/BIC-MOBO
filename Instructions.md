@@ -117,3 +117,54 @@ Claude says the issue was because *AID2ETestTools/AxHelper.py* now returns *cfg_
 
 
 
+## Currently On branch panda-idds-runner-postPR is rebased with upstream main
+
+## Issue with file structure?
+```bash
+(scheduler_epic) bash-5.1$ python test_bic-mobo.py 
+Main path and file  /gpfs/mnt/gpfs02/eic/abashyal2/BIC-MOBO test_bic-mobo.py
+Detector path from run config:  /gpfs02/eic/abashyal2/BIC-MOBO/share/epic
+Traceback (most recent call last):
+  File "/gpfs/mnt/gpfs02/eic/abashyal2/BIC-MOBO/test_bic-mobo.py", line 38, in <module>
+    script, ofiles = trial.MakeTrialScript(params)
+  File "/gpfs/mnt/gpfs02/eic/abashyal2/BIC-MOBO/EICMOBOTestTools/TrialManager.py", line 116, in MakeTrialScript
+    self.__DoGeometryEdits(params)
+  File "/gpfs/mnt/gpfs02/eic/abashyal2/BIC-MOBO/EICMOBOTestTools/TrialManager.py", line 81, in __DoGeometryEdits
+    self.geoEdit.EditRelatedFiles(cfg, self.tag)
+  File "/gpfs/mnt/gpfs02/eic/abashyal2/BIC-MOBO/EICMOBOTestTools/GeometryEditor.py", line 269, in EditRelatedFiles
+    for file in os.listdir(config):
+FileNotFoundError: [Errno 2] No such file or directory: '/gpfs02/eic/abashyal2/BIC-MOBO/run/AID2ETrial20260401164857368787/epic/configuration'
+```
+
+Not sure where configurations is supposed to be created. Derek's README.md mentions that the following code structure (which does not seem to be the case by default) 
+```url
+https://github.com/physnerds/BIC-MOBO/blob/c260df6ce10c44379aed641cc375430fcfb5f52f/README.md?plain=1#L60
+```
+
+
+## Hack to address the Issue
+
+In **GeometryEditor.py** add this line to create **configurations** if it does not exist:
+```python
+        
+        # create configurations directory if it doesn't exist
+        if not os.path.exists(config):
+            os.makedirs(config)
+        
+```
+Outputs to the test:
+
+```bash
+(scheduler_epic) bash-5.1$ python test_bic-mobo.py 
+Main path and file  /gpfs/mnt/gpfs02/eic/abashyal2/BIC-MOBO test_bic-mobo.py
+Detector path from run config:  /gpfs02/eic/abashyal2/BIC-MOBO/share/epic
+Printing the scripts and ofiles  /gpfs02/eic/abashyal2/BIC-MOBO/run/AID2ETrial20260401173226428006/do_aid2e_AID2ETrial20260401173226428006.sh {'ElectronEnergyResolution': '/gpfs02/eic/abashyal2/BIC-MOBO/out/AID2ETrial20260401173226428006/aid2e_AID2ETrial20260401173226428006_ana_single_electron_ElectronEnergyResolution.root'}
+Script /gpfs02/eic/abashyal2/BIC-MOBO/run/AID2ETrial20260401173226428006/do_aid2e_AID2ETrial20260401173226428006.sh found!
+Running command: /gpfs02/eic/abashyal2/BIC-MOBO/run_singularity.sh -- /gpfs02/eic/abashyal2/BIC-MOBO/run/AID2ETrial20260401173226428006/do_aid2e_AID2ETrial20260401173226428006.sh
+```
+
+## PIDS to check (background running)
+```bash
+(scheduler_epic) bash-5.1$ python panda-idds-bic-mobo.py &> blaa.txt&
+[1] 904385
+```

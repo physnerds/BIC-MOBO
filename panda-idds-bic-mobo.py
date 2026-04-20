@@ -34,7 +34,6 @@ def RunObjectives(*args, **kwargs):
     print(f"{'='*80}\n")
     
     # create tag for trial
-    print("Execute the thisepic.sh script to setup the environment")
     time = str(datetime.datetime.now())
     time = re.sub(r'[.\-:\ ]', '', time)
     tag = f"AxTrial{time}"
@@ -115,7 +114,7 @@ if __name__ == "__main__":
     # Now need to initialize the environment for the Panda runner
     # setup_mamba contains ax related environment that might be neded during a PanDA job. 
     logging.info("Initializing the environment for the Panda runner")
-    # TODO - Still need to verify that this initialization is correct. Tested locally but not in remote cluster as panda job.
+    # TODO - Still need to verify that this initialization is correct. Tested locally but not in remote cluster as PanDA job.
     init_env = [
         "command -v singularity &> /dev/null || export SINGULARITY=/cvmfs/oasis.opensciencegrid.org/mis/singularity/current/bin/singularity;",
         "export AIDE_WORKDIR=$(pwd);",
@@ -124,6 +123,11 @@ if __name__ == "__main__":
         # Also copy the epic files...
         #"mkdir -p ${AIDE_WORKDIR}/epic/share/epic;",
         #"${SINGULARITY} exec --bind $(pwd):$(pwd) ${SIF} /bin/bash -c \"cp -RLrf /opt/detector/epic-main/share/epic/* ${AIDE_WORKDIR}/epic/share/epic/\";",
+        # Download epic software and build it
+        "git clone --depth 1 https://github.com/epic/epic.git ${AIDE_WORKDIR};",
+        #Cmake build and install inside eic container
+        "cd ${AIDE_WORKDIR}/epic; mkdir build install;",
+        "${SINGULARITY} exec --bind $(pwd):$(pwd) ${SIF} /bin/bash -c \"cd ${AIDE_WORKDIR}/epic; cmake -B build -S . -DCMAKE_INSTALL_PREFIX=install ; cmake --build build; cmake --install build; cd -\";",
         # Install micromamba (minimal)
         "export MAMBA_ROOT_PREFIX=${AIDE_WORKDIR}/micromamba;",
         "export MAMBA_EXE=${MAMBA_ROOT_PREFIX}/bin/micromamba;",
@@ -158,12 +162,18 @@ if __name__ == "__main__":
         "name": dset_name_prefix,
         "init_env": init_env,
         "cloud": "US",
-        "queue": "BNL_PanDA_1", # Test runs locally # Other options are BNL_OSG_PanDA_2, BNL_OSG_PanDA_1, BNL_PanDA_1, BNL_PanDA_2
+        "queue": "BNL_OSG_PanDA_1", # Test runs locally # Other options are BNL_OSG_PanDA_2, BNL_OSG_PanDA_1, BNL_PanDA_1, BNL_PanDA_2
         "source_dir":None,
         "source_dir_parent_level":1,
         "exclude_source_files":[
             r"(^|/)\.[^/]+", # hidden files and directories
-            "out","run","epic","share","calibrations","fieldmaps","gdml",
+            r"(^|/)out(/|$)",# directories called out and run are excluded
+            r"(^|/)run(/|$)",
+            r"(^|/)share(/|$)",
+            r"(^|/)calibrations(/|$)",
+            r"(^|/)fieldmaps(/|$)",
+            r"(^|/)gdml(/|$)",
+            r"(^|/)epic(/|$)",
             "doc*",
             ".*log","examples",
             ".*txt","__pycache__" # calibrations dir has sym links

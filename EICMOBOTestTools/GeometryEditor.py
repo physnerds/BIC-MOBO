@@ -331,17 +331,6 @@ class GeometryEditor:
         Returns:
           commands to be run
         """
-        # Ensure CMakeLists.txt exists for geometry recompilation
-        cmake_path = os.path.join(self.detPath, "CMakeLists.txt")
-        if not os.path.exists(cmake_path):
-            print(f"CMakeLists.txt not found, cloning epic repository to {self.detPath}...")
-            if os.path.exists(self.detPath):
-                shutil.rmtree(self.detPath)
-            subprocess.run(
-                ["git", "clone", "https://github.com/eic/epic.git", self.detPath, "--depth", "1"],
-                check=True
-            )
-
         # Return recompilation commands
         return "\n".join([
             f'cd {self.detPath}',
